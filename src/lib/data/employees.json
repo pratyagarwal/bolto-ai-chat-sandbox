@@ -1,0 +1,50 @@
+[
+  {
+    "id": "emp_001",
+    "name": "Sarah Chen",
+    "team": "engineering",
+    "country": "Germany",
+    "title": "Senior Software Engineer",
+    "salary": 95000,
+    "currency": "USD",
+    "manager": "emp_005",
+    "startDate": "2023-03-15",
+    "status": "active"
+  },
+  {
+    "id": "emp_002",
+    "name": "John Smith",
+    "team": "platform",
+    "country": "Canada",
+    "title": "Staff Engineer",
+    "salary": 120000,
+    "currency": "USD",
+    "manager": "emp_006",
+    "startDate": "2022-08-01",
+    "status": "active"
+  },
+  {
+    "id": "emp_003",
+    "name": "Maria Lopez",
+    "team": "design",
+    "country": "Spain",
+    "title": "Senior Designer",
+    "salary": 75000,
+    "currency": "USD",
+    "manager": "emp_007",
+    "startDate": "2023-01-10",
+    "status": "active"
+  },
+  {
+    "id": "emp_004",
+    "name": "Alex Kim",
+    "team": "engineering",
+    "country": "South Korea",
+    "title": "Software Engineer",
+    "salary": 85000,
+    "currency": "USD",
+    "manager": "emp_005",
+    "startDate": "2023-06-01",
+    "status": "active"
+  }
+]

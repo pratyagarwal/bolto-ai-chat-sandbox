@@ -1,0 +1,62 @@
+[
+  {
+    "code": "US",
+    "name": "United States",
+    "supported": true,
+    "embargoed": false
+  },
+  {
+    "code": "CA",
+    "name": "Canada", 
+    "supported": true,
+    "embargoed": false
+  },
+  {
+    "code": "DE",
+    "name": "Germany",
+    "supported": true,
+    "embargoed": false
+  },
+  {
+    "code": "ES",
+    "name": "Spain",
+    "supported": true,
+    "embargoed": false
+  },
+  {
+    "code": "KR",
+    "name": "South Korea",
+    "supported": true,
+    "embargoed": false
+  },
+  {
+    "code": "GB",
+    "name": "United Kingdom",
+    "supported": true,
+    "embargoed": false
+  },
+  {
+    "code": "FR",
+    "name": "France",
+    "supported": true,
+    "embargoed": false
+  },
+  {
+    "code": "CN",
+    "name": "China",
+    "supported": false,
+    "embargoed": true
+  },
+  {
+    "code": "IR",
+    "name": "Iran", 
+    "supported": false,
+    "embargoed": true
+  },
+  {
+    "code": "RU",
+    "name": "Russia",
+    "supported": false,
+    "embargoed": true
+  }
+]

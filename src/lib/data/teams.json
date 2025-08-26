@@ -1,0 +1,26 @@
+[
+  {
+    "id": "team_eng",
+    "name": "engineering",
+    "department": "Technology",
+    "manager": "emp_005"
+  },
+  {
+    "id": "team_plat",
+    "name": "platform",
+    "department": "Technology", 
+    "manager": "emp_006"
+  },
+  {
+    "id": "team_design",
+    "name": "design",
+    "department": "Product",
+    "manager": "emp_007"
+  },
+  {
+    "id": "team_ops",
+    "name": "operations",
+    "department": "Business",
+    "manager": "emp_008"
+  }
+]
