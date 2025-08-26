@@ -7,8 +7,9 @@ import {
   CommandExecution,
   ConversationSession 
 } from '@/lib/models/types';
-import { extractSlotsFromMessage, generateConfirmationMessage } from '@/lib/utils/openai';
+import { extractSlotsFromMessage, generateConfirmationMessage, generateIncompleteMessage } from '@/lib/utils/openai';
 import { CommandService } from '@/lib/services/command-service';
+import { sanitizeOutput } from '@/lib/utils/sanitize';
 
 // In-memory storage for conversations (persists during server session)
 const conversations: Map<string, ConversationSession> = new Map();
@@ -56,16 +57,34 @@ export async function POST(request: NextRequest) {
 
     session.messages.push(userMessage);
 
-    // Extract intent and slots using OpenAI
+    // Extract intent and slots using OpenAI with conversation history
     console.log('Extracting slots for message:', message);
-    const slotExtraction = await extractSlotsFromMessage(message);
+    
+    // Prepare conversation history for context
+    const conversationHistory = session.messages.map(msg => ({
+      role: msg.role,
+      content: msg.content
+    }));
+    
+    const slotExtraction = await extractSlotsFromMessage(message, conversationHistory);
     console.log('Slot extraction result:', slotExtraction);
 
     let assistantMessage: ChatMessage;
     let commandExecution: CommandExecution | undefined;
     let needsConfirmation = false;
 
-    if (slotExtraction.intent === 'unknown' || slotExtraction.confidence < 0.7) {
+    if (slotExtraction.intent === 'incomplete') {
+      // Handle incomplete commands - ask for missing information
+      const incompleteMessage = await generateIncompleteMessage(slotExtraction.slots);
+      
+      assistantMessage = {
+        id: uuidv4(),
+        role: 'assistant',
+        content: sanitizeOutput(incompleteMessage),
+        timestamp: new Date().toISOString(),
+        type: 'text',
+      };
+    } else if (slotExtraction.intent === 'unknown' || slotExtraction.confidence < 0.7) {
       // Handle unknown or low-confidence commands
       assistantMessage = {
         id: uuidv4(),
@@ -76,41 +95,64 @@ export async function POST(request: NextRequest) {
 • **Bonuses**: "Give [name] a $[amount] bonus"  
 • **Title changes**: "Change [name]'s title to [new title]"
 • **Terminations**: "Terminate [name] effective [date]"
+• **View Data**: "Show me all employees" or "View teams" or "Show me John Smith"
 
 Could you please rephrase your request using one of these formats?`,
         timestamp: new Date().toISOString(),
         type: 'text',
       };
     } else {
-      // Create command execution record
-      commandExecution = {
-        id: uuidv4(),
-        sessionId: session.id,
-        intent: slotExtraction.intent,
-        slots: slotExtraction.slots,
-        status: 'pending_confirmation',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+      // Check if this is a view command (no confirmation needed)
+      const viewCommands = ['view_employees', 'view_employee', 'view_teams', 'view_history', 'view_global_history', 'help'];
+      const isViewCommand = viewCommands.includes(slotExtraction.intent);
 
-      // Store pending command
-      pendingCommands.set(commandExecution.id, commandExecution);
+      if (isViewCommand) {
+        // Execute view commands immediately
+        const result = await commandService.executeCommand(
+          slotExtraction.intent,
+          slotExtraction.slots,
+          session.id,
+          session.userId
+        );
 
-      // Generate confirmation message
-      const confirmationText = await generateConfirmationMessage(
-        slotExtraction.intent, 
-        slotExtraction.slots
-      );
+        assistantMessage = {
+          id: uuidv4(),
+          role: 'assistant',
+          content: sanitizeOutput(result.success ? result.message : `❌ ${result.message}`),
+          timestamp: new Date().toISOString(),
+          type: result.success ? 'text' : 'error',
+        };
+      } else {
+        // Create command execution record for actions that need confirmation
+        commandExecution = {
+          id: uuidv4(),
+          sessionId: session.id,
+          intent: slotExtraction.intent,
+          slots: slotExtraction.slots,
+          status: 'pending_confirmation',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
 
-      assistantMessage = {
-        id: uuidv4(),
-        role: 'assistant',
-        content: confirmationText,
-        timestamp: new Date().toISOString(),
-        type: 'confirmation',
-      };
+        // Store pending command
+        pendingCommands.set(commandExecution.id, commandExecution);
 
-      needsConfirmation = true;
+        // Generate confirmation message
+        const confirmationText = await generateConfirmationMessage(
+          slotExtraction.intent, 
+          slotExtraction.slots
+        );
+
+        assistantMessage = {
+          id: uuidv4(),
+          role: 'assistant',
+          content: sanitizeOutput(confirmationText),
+          timestamp: new Date().toISOString(),
+          type: 'confirmation',
+        };
+
+        needsConfirmation = true;
+      }
     }
 
     session.messages.push(assistantMessage);
@@ -172,7 +214,9 @@ export async function PUT(request: NextRequest) {
 
       const result = await commandService.executeCommand(
         commandExecution.intent,
-        commandExecution.slots
+        commandExecution.slots,
+        commandExecution.sessionId,
+        session.userId
       );
 
       commandExecution.status = result.success ? 'completed' : 'failed';
@@ -191,9 +235,9 @@ export async function PUT(request: NextRequest) {
         assistantMessage = {
           id: uuidv4(),
           role: 'assistant',
-          content: result.warnings && result.warnings.length > 0 
+          content: sanitizeOutput(result.warnings && result.warnings.length > 0 
             ? `${successText}\n\n⚠️ ${result.warnings.join(' ')}`
-            : successText,
+            : successText),
           timestamp: new Date().toISOString(),
           type: 'success',
         };
@@ -201,7 +245,7 @@ export async function PUT(request: NextRequest) {
         assistantMessage = {
           id: uuidv4(),
           role: 'assistant',
-          content: `❌ ${result.message}`,
+          content: sanitizeOutput(`❌ ${result.message}`),
           timestamp: new Date().toISOString(),
           type: 'error',
         };

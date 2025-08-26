@@ -9,32 +9,68 @@ import {
   Employee 
 } from '../models/types';
 import { 
+  getEmployees,
   getEmployeeByName, 
+  getTeams,
   getTeamByName, 
   isCountrySupported, 
   addEmployee, 
   updateEmployee, 
   generateEmployeeId 
 } from '../utils/data';
+import { AuditService } from './audit-service';
 
 export class CommandService {
-  async executeCommand(intent: CommandIntent, slots: CommandSlots): Promise<CommandResult> {
+  async executeCommand(intent: CommandIntent, slots: CommandSlots, sessionId: string = 'unknown', userId: string = 'demo_user'): Promise<CommandResult> {
     try {
+      let result: CommandResult;
+
       switch (intent) {
         case 'hire_employee':
-          return await this.executeHireEmployee(slots as HireSlots);
+          result = await this.executeHireEmployee(slots as HireSlots);
+          break;
         case 'give_bonus':
-          return await this.executeGiveBonus(slots as BonusSlots);
+          result = await this.executeGiveBonus(slots as BonusSlots);
+          break;
         case 'change_title':
-          return await this.executeChangeTitle(slots as ChangeTitleSlots);
+          result = await this.executeChangeTitle(slots as ChangeTitleSlots);
+          break;
         case 'terminate_employee':
-          return await this.executeTerminateEmployee(slots as TerminateSlots);
+          result = await this.executeTerminateEmployee(slots as TerminateSlots);
+          break;
+        case 'view_employees':
+          result = await this.executeViewEmployees();
+          break;
+        case 'view_employee':
+          result = await this.executeViewEmployee(slots);
+          break;
+        case 'view_teams':
+          result = await this.executeViewTeams();
+          break;
+        case 'view_history':
+          result = await this.executeViewHistory(sessionId);
+          break;
+        case 'view_global_history':
+          result = await this.executeViewHistory(); // No sessionId = global
+          break;
+        case 'help':
+          result = await this.executeHelp();
+          break;
         default:
-          return {
+          result = {
             success: false,
-            message: 'Unknown command. I can help with hiring, bonuses, title changes, and terminations.',
+            message: 'Unknown command. I can help with hiring, bonuses, title changes, terminations, and viewing data.',
           };
+          break;
       }
+
+      // Log action commands (not view commands)
+      const actionCommands = ['hire_employee', 'give_bonus', 'change_title', 'terminate_employee'];
+      if (actionCommands.includes(intent)) {
+        AuditService.logAction(sessionId, userId, intent, slots, result.success, result.success ? undefined : result.message);
+      }
+
+      return result;
     } catch (error) {
       console.error('Command execution error:', error);
       return {
@@ -177,11 +213,16 @@ export class CommandService {
   }
 
   private async executeTerminateEmployee(slots: TerminateSlots): Promise<CommandResult> {
-    if (!slots.name || !slots.termDate) {
+    if (!slots.name) {
       return {
         success: false,
-        message: 'I need both employee name and termination date.',
+        message: 'I need the employee name to proceed with termination.',
       };
+    }
+
+    // If no termDate provided, default to today's date
+    if (!slots.termDate) {
+      slots.termDate = new Date().toISOString().split('T')[0];
     }
 
     const employee = getEmployeeByName(slots.name);
@@ -221,6 +262,135 @@ export class CommandService {
         terminationDate: slots.termDate,
         reason: slots.reason || 'Not specified',
         finalPay,
+      },
+    };
+  }
+
+  private async executeViewEmployees(): Promise<CommandResult> {
+    const employees = getEmployees();
+    
+    const employeeList = employees.map(emp => 
+      `• ${emp.name} - ${emp.title} (${emp.team} team, ${emp.country}) - ${emp.status}`
+    ).join('\n');
+
+    return {
+      success: true,
+      message: `Current Employees (${employees.length}):\n\n${employeeList}`,
+      data: { employees, count: employees.length },
+    };
+  }
+
+  private async executeViewEmployee(slots: CommandSlots): Promise<CommandResult> {
+    if (!slots.name) {
+      return {
+        success: false,
+        message: 'Please specify which employee you want to view.',
+      };
+    }
+
+    const employee = getEmployeeByName(slots.name);
+    if (!employee) {
+      return {
+        success: false,
+        message: `Could not find employee "${slots.name}".`,
+      };
+    }
+
+    const details = [
+      `**Name:** ${employee.name}`,
+      `**Title:** ${employee.title}`,
+      `**Team:** ${employee.team}`,
+      `**Country:** ${employee.country}`,
+      `**Salary:** $${employee.salary.toLocaleString()} ${employee.currency}`,
+      `**Start Date:** ${employee.startDate}`,
+      `**Status:** ${employee.status}`,
+      `**Employee ID:** ${employee.id}`
+    ].join('\n');
+
+    return {
+      success: true,
+      message: `Employee Details:\n\n${details}`,
+      data: { employee },
+    };
+  }
+
+  private async executeViewTeams(): Promise<CommandResult> {
+    const teams = getTeams();
+    
+    const teamList = teams.map(team => 
+      `• ${team.name} (${team.department})`
+    ).join('\n');
+
+    return {
+      success: true,
+      message: `Available Teams (${teams.length}):\n\n${teamList}`,
+      data: { teams, count: teams.length },
+    };
+  }
+
+  private async executeViewHistory(sessionId?: string): Promise<CommandResult> {
+    const logs = sessionId ? AuditService.getSessionLogs(sessionId) : AuditService.getAllLogs();
+    
+    if (logs.length === 0) {
+      return {
+        success: true,
+        message: sessionId 
+          ? "No actions have been taken in this session yet."
+          : "No actions have been logged yet.",
+        data: { logs: [] },
+      };
+    }
+
+    const logMessages = logs.map(log => AuditService.formatLogForDisplay(log));
+    const title = sessionId 
+      ? `Session Action History (${logs.length} actions):`
+      : `All Action History (${logs.length} actions):`;
+
+    return {
+      success: true,
+      message: `${title}\n\n${logMessages.join('\n')}`,
+      data: { logs, count: logs.length },
+    };
+  }
+
+  private async executeHelp(): Promise<CommandResult> {
+    const helpMessage = `Available HR Assistant Commands:
+
+EMPLOYEE MANAGEMENT:
+• Hire Employee: "Hire [name] to the [team] team in [country]"
+• Give Bonus: "Give [name] a $[amount] bonus"
+• Change Title: "Change [name]'s title to [new title]"
+• Terminate Employee: "Terminate [name] effective [date]"
+
+VIEW DATA:
+• View All Employees: "Show me all employees"
+• View Specific Employee: "Show me [employee name]"
+• View Teams: "Show me all teams"
+• View History: "Show conversation history"
+
+EXAMPLES:
+• "Hire John Smith to the engineering team in Canada"
+• "Give Sarah Chen a $5000 performance bonus"
+• "Change Maria Lopez's title to Senior Designer"
+• "Terminate Alex Kim effective 2024-12-31"
+• "Show me all employees"
+
+Just ask in natural language - I'll understand what you need!`;
+
+    return {
+      success: true,
+      message: helpMessage,
+      data: { 
+        commands: [
+          'hire_employee',
+          'give_bonus', 
+          'change_title',
+          'terminate_employee',
+          'view_employees',
+          'view_employee',
+          'view_teams',
+          'view_history'
+        ]
       },
     };
   }

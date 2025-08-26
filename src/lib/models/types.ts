@@ -94,12 +94,38 @@ export interface CommandResult {
   warnings?: string[];
 }
 
+// Audit log types
+export interface ActionLog {
+  id: string;
+  sessionId: string;
+  userId: string;
+  action: CommandIntent;
+  details: {
+    employeeName?: string;
+    fromValue?: string;
+    toValue?: string;
+    amount?: number;
+    reason?: string;
+    [key: string]: any;
+  };
+  timestamp: string;
+  success: boolean;
+  errorMessage?: string;
+}
+
 // Command intent types
 export type CommandIntent = 
   | 'hire_employee'
   | 'give_bonus' 
   | 'change_title'
   | 'terminate_employee'
+  | 'view_employees'
+  | 'view_employee'
+  | 'view_teams'
+  | 'view_history'
+  | 'view_global_history'
+  | 'help'
+  | 'incomplete'
   | 'unknown';
 
 // API request/response types

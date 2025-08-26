@@ -37,7 +37,7 @@ export const TerminateSlotsSchema = z.object({
 export const CommandExecutionSchema = z.object({
   id: z.string(),
   sessionId: z.string(),
-  intent: z.enum(['hire_employee', 'give_bonus', 'change_title', 'terminate_employee', 'unknown']),
+  intent: z.enum(['hire_employee', 'give_bonus', 'change_title', 'terminate_employee', 'view_employees', 'view_employee', 'view_teams', 'view_history', 'view_global_history', 'help', 'incomplete', 'unknown']),
   slots: z.record(z.union([z.string(), z.number()])),
   status: z.enum(['extracting_slots', 'pending_confirmation', 'executing', 'completed', 'failed']),
 });
