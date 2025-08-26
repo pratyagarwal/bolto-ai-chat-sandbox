@@ -65,9 +65,10 @@ export function useChat() {
   }, []);
 
   const sendMessage = useCallback(async (message: string) => {
-    if (!state.activeConversationId) {
-      createNewConversation();
-      return;
+    let conversationId = state.activeConversationId;
+    
+    if (!conversationId) {
+      conversationId = createNewConversation();
     }
 
     const userMessage: ChatMessage = {
@@ -82,7 +83,7 @@ export function useChat() {
     setState(prev => ({
       ...prev,
       conversations: prev.conversations.map(conv => 
-        conv.id === state.activeConversationId
+        conv.id === conversationId
           ? {
               ...conv,
               messages: [...conv.messages, userMessage],
@@ -95,15 +96,16 @@ export function useChat() {
     }));
 
     try {
+      const currentConversation = state.conversations.find(conv => conv.id === conversationId);
       const response = await chatClient.sendMessage({
         message,
-        sessionId: activeConversation?.sessionId || undefined,
+        sessionId: currentConversation?.sessionId || undefined,
       });
 
       setState(prev => ({
         ...prev,
         conversations: prev.conversations.map(conv => 
-          conv.id === state.activeConversationId
+          conv.id === conversationId
             ? {
                 ...conv,
                 messages: [...conv.messages, response.message],
@@ -129,7 +131,7 @@ export function useChat() {
       setState(prev => ({
         ...prev,
         conversations: prev.conversations.map(conv => 
-          conv.id === state.activeConversationId
+          conv.id === conversationId
             ? {
                 ...conv,
                 messages: [...conv.messages, errorMessage],
@@ -140,7 +142,7 @@ export function useChat() {
         ),
       }));
     }
-  }, [state.activeConversationId, activeConversation?.sessionId, createNewConversation]);
+  }, [state, createNewConversation]);
 
   const confirmCommand = useCallback(async (confirmed: boolean) => {
     if (!state.activeConversationId) return;
