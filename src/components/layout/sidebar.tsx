@@ -1,10 +1,19 @@
 import { NewChatButton } from '../conversation/new-chat-button';
+import { Conversation } from '@/hooks/use-chat';
 
 interface SidebarProps {
+  conversations: Conversation[];
+  activeConversationId: string | null;
   onNewChat: () => void;
+  onSwitchConversation: (conversationId: string) => void;
 }
 
-export function Sidebar({ onNewChat }: SidebarProps) {
+export function Sidebar({ 
+  conversations, 
+  activeConversationId, 
+  onNewChat, 
+  onSwitchConversation 
+}: SidebarProps) {
   return (
     <div className="w-64 bg-gray-50 border-r border-gray-200 flex flex-col h-full">
       {/* Header */}
@@ -23,19 +32,28 @@ export function Sidebar({ onNewChat }: SidebarProps) {
       </div>
 
       {/* Chat History */}
-      <div className="flex-1 px-4">
-        <div className="text-sm text-gray-500 mb-2">Recent conversations</div>
-        <div className="space-y-1">
-          <div className="p-2 rounded hover:bg-gray-100 cursor-pointer text-sm text-gray-700">
-            Hired Alex Rodriguez to Engineering
-          </div>
-          <div className="p-2 rounded hover:bg-gray-100 cursor-pointer text-sm text-gray-700">
-            Sarah Chen bonus approval
-          </div>
-          <div className="p-2 rounded hover:bg-gray-100 cursor-pointer text-sm text-gray-700">
-            Title change for Maria Lopez
-          </div>
-        </div>
+      <div className="flex-1 px-4 overflow-y-auto">
+        {conversations.length > 0 && (
+          <>
+            <div className="text-sm text-gray-500 mb-2">Recent conversations</div>
+            <div className="space-y-1">
+              {conversations.map((conversation) => (
+                <div
+                  key={conversation.id}
+                  onClick={() => onSwitchConversation(conversation.id)}
+                  className={`p-2 rounded cursor-pointer text-sm truncate transition-colors ${
+                    conversation.id === activeConversationId
+                      ? 'bg-blue-100 text-blue-900 border border-blue-200'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                  title={conversation.title}
+                >
+                  {conversation.title}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Footer */}

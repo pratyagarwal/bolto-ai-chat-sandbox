@@ -2,16 +2,23 @@
 
 import { ChatMessages } from './chat-messages';
 import { ChatInput } from './chat-input';
-import { useChat } from '@/hooks/use-chat';
+import { ChatMessage, CommandExecution } from '@/lib/models/types';
 
-export function ChatWindow() {
-  const { 
-    messages, 
-    isLoading, 
-    pendingCommand, 
-    sendMessage, 
-    confirmCommand 
-  } = useChat();
+interface ChatWindowProps {
+  messages: ChatMessage[];
+  isLoading: boolean;
+  pendingCommand: CommandExecution | null;
+  onSendMessage: (message: string) => void;
+  onConfirmCommand: (confirmed: boolean) => void;
+}
+
+export function ChatWindow({ 
+  messages, 
+  isLoading, 
+  pendingCommand, 
+  onSendMessage, 
+  onConfirmCommand 
+}: ChatWindowProps) {
 
   return (
     <div className="flex-1 flex flex-col bg-white">
@@ -35,13 +42,13 @@ export function ChatWindow() {
       <ChatMessages
         messages={messages}
         pendingCommand={pendingCommand}
-        onConfirm={confirmCommand}
+        onConfirm={onConfirmCommand}
         isLoading={isLoading}
       />
 
       {/* Input */}
       <ChatInput
-        onSendMessage={sendMessage}
+        onSendMessage={onSendMessage}
         disabled={isLoading}
         placeholder="Ask me to hire someone, give a bonus, change a title, or terminate an employee..."
       />

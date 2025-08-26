@@ -5,12 +5,33 @@ import { ChatWindow } from '../chat/chat-window';
 import { useChat } from '@/hooks/use-chat';
 
 export function AppLayout() {
-  const { startNewChat } = useChat();
+  const { 
+    conversations, 
+    activeConversationId, 
+    messages,
+    isLoading,
+    pendingCommand,
+    createNewConversation, 
+    switchConversation,
+    sendMessage,
+    confirmCommand
+  } = useChat();
 
   return (
     <div className="h-screen flex bg-white">
-      <Sidebar onNewChat={startNewChat} />
-      <ChatWindow />
+      <Sidebar 
+        conversations={conversations}
+        activeConversationId={activeConversationId}
+        onNewChat={createNewConversation}
+        onSwitchConversation={switchConversation}
+      />
+      <ChatWindow 
+        messages={messages}
+        isLoading={isLoading}
+        pendingCommand={pendingCommand}
+        onSendMessage={sendMessage}
+        onConfirmCommand={confirmCommand}
+      />
     </div>
   );
 }
